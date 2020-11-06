@@ -118,17 +118,30 @@ cat_feature_imputer_dict = OrderedDict({'Electrical': {'missing_values': np.nan
                                           ,'strategy': 'most_frequent'},
                                      })
 
-cat_lbl_encode_list = ['MSSubClass', 'MSZoning', 'Alley',
+cat_lbl_encode_list = ['MSZoning', 'Alley',
                         'LotShape', 'LandContour', 'LotConfig',
                         'Neighborhood', 'Condition1', 'BldgType',
-                        'HouseStyle', 'OverallQual', 'OverallCond',
-                        'RoofStyle', 'RoofMatl', 'Exterior1st', 'Exterior2nd',
-                        'MasVnrType', 'ExterQual', 'Foundation',
+                        'HouseStyle', 'RoofStyle', 'RoofMatl', 'Exterior1st', 'Exterior2nd',
+                        'MasVnrType', 'ExterQual', 'ExterCond', 'Foundation',
                         'BsmtQual', 'BsmtCond', 'BsmtExposure', 'BsmtFinType1',
                         'Heating', 'HeatingQC', 'CentralAir', 'Electrical',
                         'KitchenQual', 'Functional', 'FireplaceQu', 'GarageType',
                         'GarageFinish', 'GarageQual', 'GarageCond', 'PavedDrive',
                         'Fence', 'SaleType', 'SaleCondition']
+
+cat_1hot_encode_list = ['MSZoning', 'Alley',
+                        'LotShape', 'LandContour', 'LotConfig',
+                        'Neighborhood', 'Condition1', 'BldgType',
+                        'HouseStyle', 'RoofStyle', 'RoofMatl', 'Exterior1st', 'Exterior2nd',
+                        'MasVnrType', 'ExterQual', 'ExterCond', 'Foundation',
+                        'BsmtQual', 'BsmtCond', 'BsmtExposure', 'BsmtFinType1',
+                        'Heating', 'HeatingQC', 'CentralAir', 'Electrical',
+                        'KitchenQual', 'Functional', 'FireplaceQu', 'GarageType',
+                        'GarageFinish', 'GarageQual', 'GarageCond', 'PavedDrive',
+                        'Fence', 'SaleType', 'SaleCondition']
+
+feature_selection_dict = {'model_type': 'Regression',
+                          'threshold': 0.0001}
 
 # analyze_feature_transform_pipeline = Pipeline([
 # ('Drop_Feat_w_High_Missing_Values', ctm.Custom_Missing_Values_Check_Column_Drop(missing_val_percentage=0.7, loginfo=True)),
@@ -140,11 +153,13 @@ cat_lbl_encode_list = ['MSSubClass', 'MSZoning', 'Alley',
 analyze_feature_transform_pipeline = Pipeline([
 ('Cat_SimpleImputer', ctm.Custom_SimpleImputer(feature_imputer_dict=cat_feature_imputer_dict, verbose=True)),
 ('Cat_LabelEncoder', ctm.Custom_LabelEncoder(feature_lbl_encode_list=cat_lbl_encode_list, loginfo=True)),
+('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=True)),
+('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, loginfo=True)),
 ])
 
 
 breakpoint()
-transformed_df = analyze_feature_transform_pipeline.fit_transform(X)
+transformed_df = analyze_feature_transform_pipeline.fit_transform(X, y)
 logger.info(f"\nFinal Tranformed Dataframe:\n{transformed_df.to_string()}")
 logger.info(f"\nFinal Tranformed Dataframe shape:\n{transformed_df.shape}")
 
@@ -175,12 +190,15 @@ feature_transform_pipeline = Pipeline([
 model_perf_tuning_df = ctm.model_perf_tuning(X=X,  #X=X_train,
                                 y=y, #y=y_train,
                                 feature_trans=feature_transform_pipeline,
-                                estimator_list=['LGBMClassifier',
-                                                'GradientBoostingClassifier',
-                                                'RandomForestClassifier',
+                                estimator_list=['RandomForestRegressor',
+                                                #'LGBMClassifier',
+                                                #'GradientBoostingClassifier',
                                                 #'CatBoostClassifier'
                                                 ],
-                                score_eval=roc_auc_score)
+                                model_type='Regression',
+                                score_eval='rmsle',
+                                greater_the_better=False,
+                                cv_n_splits=)
                                 #score_eval=accuracy_score)
 
 
@@ -188,9 +206,10 @@ model_perf_tuning_df = ctm.model_perf_tuning(X=X,  #X=X_train,
 all_tree_model_eval_df, best_tree_model = ctm.model_ensemble_classification(X=X, #X=X_train,
                                             y=y, #y=y_train,
                                             feature_trans=feature_transform_pipeline,
-                                            estimator_list=['LGBMClassifier',
-                                                            'GradientBoostingClassifier',
-                                                            'RandomForestClassifier',
+                                            estimator_list=['RandomForestRegressor',
+                                                            #'LGBMClassifier',
+                                                            #'GradientBoostingClassifier',
+                                                            #'RandomForestClassifier',
                                                             #'CatBoostClassifier'
                                                              ],
                                             score_eval=roc_auc_score,

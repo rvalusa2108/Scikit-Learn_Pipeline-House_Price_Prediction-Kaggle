@@ -48,6 +48,12 @@ from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 from sklearn.linear_model import RidgeClassifier
 from sklearn.model_selection import cross_val_score, cross_validate, cross_val_predict
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import AdaBoostRegressor
+from sklearn.ensemble import ExtraTreesRegressor
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import BaggingRegressor
+from sklearn.feature_selection import SelectFromModel
 
 from kaggle.api.kaggle_api_extended import KaggleApi
 
@@ -55,10 +61,13 @@ import pickle
 import pickle as cPickle
 from collections import OrderedDict
 
+import matplotlib.pyplot as plt
+
 from numpy.random.mtrand import _rand as global_randstate
 np.random.seed(42)
 
 logger = logging.getLogger(__name__)
+logger.handlers.clear()
 if not logger.hasHandlers():
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
@@ -502,9 +511,10 @@ class Custom_LabelEncoder(BaseEstimator, TransformerMixin):
 #=============================================================================
 
 class Custom_OneHotEncoder(BaseEstimator, TransformerMixin):
-    def __init__(self, feature_1hot_encode_list, drop_first=True):
+    def __init__(self, feature_1hot_encode_list, drop_first=True, loginfo=False):
         self.feature_1hot_encode_list = feature_1hot_encode_list
         self.drop_first = drop_first
+        self.loginfo = loginfo
 
     def fit(self, X, y=None, **kwargs):
         self.fit_obj_dict = {}
@@ -533,6 +543,11 @@ class Custom_OneHotEncoder(BaseEstimator, TransformerMixin):
             df.reset_index(drop=True, inplace=True)
             ohe_df.reset_index(drop=True, inplace=True)
             df = pd.concat([df, ohe_df], axis=1).drop([feat], axis=1)
+
+            if self.loginfo:
+                logger.info(f"""
+                            OneHot Encoded column names for the feature - '{feat}': {self.fit_obj_dict[feat].get_feature_names([feat])}
+                            """)
         return df
         # return ohe_df
 #=============================================================================
@@ -598,7 +613,45 @@ class custom_tfidf(BaseEstimator,TransformerMixin):
         return self.tfidf.transform(joined_X)
 
 #=============================================================================
+class Custom_Feature_Selection(BaseEstimator, TransformerMixin):
+    def __init__(self, feature_selection_dict, loginfo=False):
+        self.feature_selection_dict = feature_selection_dict
+        self.loginfo = loginfo
 
+    def fit(self, X, y=None, **kwargs):
+        X_copy = X.copy()
+
+        if self.feature_selection_dict['model_type'] == 'Regression':
+            self.sfm = SelectFromModel(estimator=RandomForestRegressor(n_estimators=400,
+                                                                       random_state=42),
+                                                                       threshold=self.feature_selection_dict['threshold'])
+            self.sfm.fit(X_copy, y)
+
+            feat_importances = pd.Series(self.sfm.estimator_.feature_importances_,
+                                          index=X_copy.columns).sort_values(ascending=False)
+
+            plt.figure(figsize=(10,12))
+            feat_importances.plot(kind='barh')
+            plt.show()
+
+            important_feats = X_copy.columns.values[self.sfm.get_support()].tolist()
+
+            if self.loginfo:
+                logger.info(f"""Feature Importance Threshold:\n {self.feature_selection_dict['threshold']}""")
+                logger.info(f"""Feature Importance:\n{feat_importances}""")
+                logger.info(f"""Features selected based on importance:\n{important_feats}""")
+
+        return self
+
+    def transform(self, X):
+        X_copy = X.copy()
+
+        if self.feature_selection_dict['model_type'] == 'Regression':
+            sfm_transformed = pd.DataFrame(data=self.sfm.transform(X_copy),
+                                           columns=X_copy.columns.values[self.sfm.get_support()].tolist())
+
+        return sfm_transformed
+#=============================================================================
 
 def get_stacking_ensemble_classifiers():
     # define the base models
@@ -735,7 +788,11 @@ def binary_classification_tree_models_perf(feat_trans_pipeline,
 def model_perf_tuning(X, y,
                       feature_trans,
                       estimator_list,
-                      score_eval):
+                      model_type,
+                      score_eval,
+                      greater_the_better=True,
+                      cv_n_splits=2,
+                      randomsearchcv_n_iter=25):
 
     model_perf_tuning_dict = {}
 
@@ -743,12 +800,18 @@ def model_perf_tuning(X, y,
         config_data = yaml.load(f, Loader=yaml.FullLoader)
 
     for estimator in estimator_list:
-        # estimator = estimator_list[0]
+        prinf(f"""\n##################\nModel Performance Tuning : {estimator}\n##################""")
         model_pipeline = Pipeline([('feat_trans', feature_trans),
-                                   ('estimator', globals()[estimator]())])
+                                   ('model_estimator', globals()[estimator]())])
 
-        model_params = config_data['tree_classification_models_parameters'][estimator]
-        grid_params = {f'estimator__{k}': v for k, v in model_params.items()}
+        if mode_type == 'Classification':
+            model_params = config_data['tree_classification_models_parameters'][estimator]
+            cv = StratifiedKFold(n_splits=cv_n_splits, shuffle=True, random_state=42)
+        if mode_type == 'Regression':
+            model_params = config_data['regression_models_parameters'][estimator]
+            cv = KFold(n_splits=cv_n_splits, shuffle=True, random_state=42)
+
+        grid_params = {f'model_estimator__{k}': v for k, v in model_params.items()}
 
         # scoring = {'Accuracy': make_scorer(accuracy_score),
         #            'ROC_AUC_Score': make_scorer(roc_auc_score),
@@ -757,15 +820,28 @@ def model_perf_tuning(X, y,
         # scoring = {'ROC_AUC_Score': make_scorer(score_eval)}
         # scoring = config_data['classification_eval_metrics']
 
+        if score_eval == 'rmse':
+            scorer = make_scorer(mean_squared_error, squared=False, greate_is_better=False)
+        if score_eval == 'rmsle':
+            scorer = make_scorer(mean_squared_log_error)
+        if score_eval == 'mse':
+            scorer = make_scorer(mean_squared_error, squared=True, greate_is_better=False)
+        if score_eval == 'roc_auc_score':
+            scorer = make_scorer(roc_auc_score,
+                                 average='macro',
+                                 sample_weight=None,
+                                 max_fpr=None,
+                                 multi_class='raise',
+                                 labels=None,
+                                 greate_is_better=True)
 
-        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
         clf = RandomizedSearchCV(estimator=model_pipeline,
                                  param_distributions=grid_params,
-                                 n_iter=500,
+                                 n_iter=randomsearchcv_n_iter,
                                  #n_iter=2,
-                                 scoring=make_scorer(score_eval),
+                                 #scoring=make_scorer(score_eval),
+                                 scoring=scorer,
                                  n_jobs=-1,
-                                 #n_jobs=1,
                                  refit=True,
                                  cv=cv,
                                  verbose=1,
@@ -775,7 +851,7 @@ def model_perf_tuning(X, y,
         clf.fit(X, y)
 
         model_pipeline.set_params(**clf.best_params_)
-        cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+        #cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
         oof_preds = cross_val_predict(estimator=model_pipeline,
                                       X=X,
                                       y=y,
@@ -784,9 +860,21 @@ def model_perf_tuning(X, y,
                                       method='predict',
                                       # fit_params=clf.best_params_,
                                       verbose=1)
-        # breakpoint()
-        # oof_roc_auc_score = roc_auc_score(y, oof_preds)
-        oof_eval_score = score_eval(y, oof_preds)
+
+        if model_type =='Regression':
+            if score_eval == 'rmse':
+                oof_eval_score = mean_squared_error(y_true=y.to_numpy(), y_pred=oof_preds, squared=False)
+            if score_eval == 'rmsle':
+                oof_eval_score = np.sqrt(mean_squared_log_error(y_true=y.to_numpy(), y_pred=oof_preds, squared=False))
+            if score_eval == 'mse':
+                oof_eval_score = mean_squared_error(y_true=y.to_numpy(), y_pred=oof_preds, squared=True)
+
+        if model_type == 'Classification':
+            if score_eval == 'roc_auc_score':
+                oof_eval_score = roc_auc_score(y_true=y.to_numpy(), y_score=oof_preds)
+
+        print(f"""\n{score_eval} OOF Model Evaluation Score : {estimator} - {oof_eval_score}""")
+        #oof_eval_score = score_eval(y, oof_preds)
 
         esti_eval_dict = {}
         esti_eval_dict['OOF_'+score_eval.__name__] = round(oof_eval_score, 5)
@@ -803,13 +891,21 @@ def model_perf_tuning(X, y,
     model_perf_tuning_df = pd.DataFrame.from_dict(model_perf_tuning_dict,
                                                   orient='index').reset_index().rename(columns={'index': 'Model'})
 
+    if greater_the_better:
+        # model_perf_tuning_df = model_perf_tuning_df.sort_values(by='OOF_'+score_eval.__name__, ascending=False)
+        model_perf_tuning_df = model_perf_tuning_df.sort_values(by='OOF_'+score_eval, ascending=False)
+    else:
+        # model_perf_tuning_df = model_perf_tuning_df.sort_values(by='OOF_'+score_eval.__name__, ascending=True)
+        model_perf_tuning_df = model_perf_tuning_df.sort_values(by='OOF_'+score_eval, ascending=True)
 
-    model_perf_tuning_df = model_perf_tuning_df.sort_values(by='OOF_'+score_eval.__name__, ascending=False)
-    logger.info(f"\n:: Single Model Evaluation Metric ::\n{model_perf_tuning_df[['Model', 'OOF_'+score_eval.__name__, 'Total_Fits', 'Best_Score', 'Mean_Train_Score', 'Std_Train_Score', 'Mean_Test_Score', 'Std_Test_Score']].to_string()}")
+    # logger.info(f"\n:: Single Model Evaluation Metric ::\n{model_perf_tuning_df[['Model', 'OOF_'+score_eval.__name__, 'Total_Fits', 'Best_Score', 'Mean_Train_Score', 'Std_Train_Score', 'Mean_Test_Score', 'Std_Test_Score']].to_string()}")
+    logger.info(f"\n:: Single Model Evaluation Metric ::\n{model_perf_tuning_df[['Model', 'OOF_'+score_eval, 'Total_Fits', 'Best_Score', 'Mean_Train_Score', 'Std_Train_Score', 'Mean_Test_Score', 'Std_Test_Score']].to_string()}")
 
     best_model_best_params = eval(model_perf_tuning_df.iloc[0].to_dict()['Best_Params'])
+    # model_pipeline = Pipeline([('feat_trans', feature_trans),
+    #                             ('estimator', globals()[model_perf_tuning_df.iloc[0].to_dict()['Model']]())])
     model_pipeline = Pipeline([('feat_trans', feature_trans),
-                               ('estimator', globals()[model_perf_tuning_df.iloc[0].to_dict()['Model']]())])
+                            ('model_estimator', globals()[model_perf_tuning_df.iloc[0].to_dict()['Model']]())])
     model_pipeline.set_params(**best_model_best_params)
     logger.info(f"\nBest Single Tree Model : {model_perf_tuning_df.iloc[0].to_dict()['Model']}")
     logger.info(f"\nBest Single Tree Model - {model_perf_tuning_df.iloc[0].to_dict()['Model']} Params ::\n {pformat(eval(model_perf_tuning_df.iloc[0].to_dict()['Best_Params']))}")
