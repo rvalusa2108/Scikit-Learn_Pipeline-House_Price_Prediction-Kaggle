@@ -24,14 +24,14 @@ pd.set_option('display.max_columns', 500)
 import numpy as np
 import missingno as msno
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
-from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.model_selection import StratifiedKFold, KFold, train_test_split
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn.metrics import make_scorer, f1_score, accuracy_score, roc_auc_score
+from sklearn.metrics import make_scorer, f1_score, accuracy_score, roc_auc_score, mean_squared_error, mean_squared_log_error
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -42,7 +42,7 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.ensemble import BaggingClassifier
-from sklearn.ensemble import StackingClassifier
+from sklearn.ensemble import StackingClassifier, StackingRegressor
 from lightgbm import LGBMClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
@@ -526,7 +526,9 @@ class Custom_OneHotEncoder(BaseEstimator, TransformerMixin):
             self.drop_first = None
 
         for feat in self.feature_1hot_encode_list:
-            self.onehot_enc = OneHotEncoder(drop=self.drop_first, sparse=False)
+            self.onehot_enc = OneHotEncoder(drop=self.drop_first,
+                                            sparse=False,
+                                            handle_unknown='ignore')
             self.onehot_enc.fit(X_copy[feat].values.reshape(-1,1))
 
             self.fit_obj_dict[feat] = self.onehot_enc
@@ -800,14 +802,14 @@ def model_perf_tuning(X, y,
         config_data = yaml.load(f, Loader=yaml.FullLoader)
 
     for estimator in estimator_list:
-        prinf(f"""\n##################\nModel Performance Tuning : {estimator}\n##################""")
+        print(f"""\n##################\nModel Performance Tuning : {estimator}\n##################""")
         model_pipeline = Pipeline([('feat_trans', feature_trans),
                                    ('model_estimator', globals()[estimator]())])
 
-        if mode_type == 'Classification':
+        if model_type == 'Classification':
             model_params = config_data['tree_classification_models_parameters'][estimator]
             cv = StratifiedKFold(n_splits=cv_n_splits, shuffle=True, random_state=42)
-        if mode_type == 'Regression':
+        if model_type == 'Regression':
             model_params = config_data['regression_models_parameters'][estimator]
             cv = KFold(n_splits=cv_n_splits, shuffle=True, random_state=42)
 
@@ -865,7 +867,7 @@ def model_perf_tuning(X, y,
             if score_eval == 'rmse':
                 oof_eval_score = mean_squared_error(y_true=y.to_numpy(), y_pred=oof_preds, squared=False)
             if score_eval == 'rmsle':
-                oof_eval_score = np.sqrt(mean_squared_log_error(y_true=y.to_numpy(), y_pred=oof_preds, squared=False))
+                oof_eval_score = np.sqrt(mean_squared_log_error(y_true=y.to_numpy(), y_pred=oof_preds))
             if score_eval == 'mse':
                 oof_eval_score = mean_squared_error(y_true=y.to_numpy(), y_pred=oof_preds, squared=True)
 
@@ -877,7 +879,7 @@ def model_perf_tuning(X, y,
         #oof_eval_score = score_eval(y, oof_preds)
 
         esti_eval_dict = {}
-        esti_eval_dict['OOF_'+score_eval.__name__] = round(oof_eval_score, 5)
+        esti_eval_dict['OOF_'+score_eval] = round(oof_eval_score, 5)
         esti_eval_dict['Total_Fits'] = clf.n_splits_*len(clf.cv_results_['mean_train_score'])
         esti_eval_dict['Best_Score'] = round(clf.best_score_,5)
         esti_eval_dict['Best_Params'] = str(clf.best_params_)
@@ -907,10 +909,12 @@ def model_perf_tuning(X, y,
     model_pipeline = Pipeline([('feat_trans', feature_trans),
                             ('model_estimator', globals()[model_perf_tuning_df.iloc[0].to_dict()['Model']]())])
     model_pipeline.set_params(**best_model_best_params)
-    logger.info(f"\nBest Single Tree Model : {model_perf_tuning_df.iloc[0].to_dict()['Model']}")
-    logger.info(f"\nBest Single Tree Model - {model_perf_tuning_df.iloc[0].to_dict()['Model']} Params ::\n {pformat(eval(model_perf_tuning_df.iloc[0].to_dict()['Best_Params']))}")
-    logger.info(f"\nBest Single Tree Model - - {model_perf_tuning_df.iloc[0].to_dict()['Model']} Pipeline :\n {pformat(model_pipeline.__dict__)}")
-    with open('best_single_tree_model.plk', 'wb') as f:
+
+    logger.info(f"\nBest Single Model : {model_perf_tuning_df.iloc[0].to_dict()['Model']}")
+    logger.info(f"\nBest Single Model - {model_perf_tuning_df.iloc[0].to_dict()['Model']} Params ::\n {pformat(eval(model_perf_tuning_df.iloc[0].to_dict()['Best_Params']))}")
+    logger.info(f"\nBest Single Model - - {model_perf_tuning_df.iloc[0].to_dict()['Model']} Pipeline :\n {pformat(model_pipeline.__dict__)}")
+
+    with open('best_single_model.plk', 'wb') as f:
         pickle.dump(model_pipeline, f)
 
     return model_perf_tuning_df
@@ -1117,6 +1121,195 @@ def model_ensemble_classification(X,
 
 
 #=============================================================================
+
+def model_ensemble(X,
+                    y,
+                    feature_trans,
+                    estimator_list,
+                    score_eval,
+                    greater_the_better,
+                    model_type,
+                    model_perf_tuning_df):
+
+    stacked_model_eval_dict = {}
+
+    with open('config.yaml') as f:
+        config_data = yaml.load(f, Loader=yaml.FullLoader)
+
+    if model_type == 'Regression':
+        models_short_name_dict = config_data['regression_models_short_name']
+    if model_type == 'classification':
+        models_short_name_dict = config_data['classification_models_short_name']
+
+    df = model_perf_tuning_df.copy()
+    df.set_index('Model', inplace=True)
+
+    ll = estimator_list
+    model_combinations_list = []
+    for ii in range(2, len(ll)+1):
+        if ii == 2:
+            res = [list(ele) for ele in list(itertools.permutations(ll, ii))]
+            model_combinations_list.extend(res)
+        else:
+            res = [list(ele) for ele in list(itertools.permutations(ll, ii))]
+            final_list = []
+            for i in res:
+                pop_item = i.pop()
+                sorted_list = sorted(i)
+                final_list.append(sorted_list+[pop_item])
+
+            final_list.sort()
+            complete_list = list(final_list for final_list,_ in itertools.groupby(final_list))
+            model_combinations_list.extend(complete_list)
+
+    # model_combinations_tuple = permutations(estimator_list)
+    for models_list in model_combinations_list:
+        level0 = list()
+        model_params_dict = {}
+        for i in models_list[:-1]:
+            level0.append((models_short_name_dict[i][0],  globals()[i]()))
+
+            for key, val in eval(df.loc[i, 'Best_Params']).items():
+                key = key.replace('__', '__'+models_short_name_dict[i][0]+'__')
+                model_params_dict[key] = val
+
+        # define meta learner model
+        level1 = globals()[models_list[-1]]()
+        final_model_short_name = models_short_name_dict[models_list[-1]][0]
+
+        for key, val in eval(df.loc[models_list[-1], 'Best_Params']).items():
+            # key = key.replace('__', '__'+models_short_name_dict[models_list[-1]][0]+'__')
+            key = key.replace('__', '__final_estimator__')
+            model_params_dict[key] = val
+
+        # define the stacking ensemble
+        if model_type == 'Regression':
+            cv = KFold(n_splits=3, shuffle=True, random_state=42)
+            model_stack = StackingRegressor(estimators=level0, final_estimator=level1)
+
+        if model_type == 'Classification':
+            cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+            model_stack = StackingClassifier(estimators=level0, final_estimator=level1)
+
+        # model_pipeline = Pipeline([('feat_trans', feature_trans),
+        #                            ('estimator', model_stack)])
+        model_pipeline = Pipeline([('feat_trans', feature_trans),
+                                   ('model_estimator', model_stack)])
+
+        #cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+        model_pipeline.set_params(**model_params_dict)
+        oof_preds = cross_val_predict(estimator=model_pipeline,
+                                      X=X,
+                                      y=y,
+                                      cv=cv,
+                                      n_jobs=-1,
+                                      method='predict',
+                                      # fit_params=clf.best_params_,
+                                      verbose=1)
+
+        if model_type == 'Regression':
+            if score_eval == 'rmse':
+                oof_eval_score = mean_squared_error(y_true=y.to_numpy(), y_pred=oof_preds, squared=False)
+            if score_eval == 'mse':
+                oof_eval_score = mean_squared_error(y_true=y.to_numpy(), y_pred=oof_preds, squared=True)
+            if score_eval == 'rmsle':
+                oof_eval_score = np.sqrt(mean_squared_log_error(y_true=y.to_numpy(), y_pred=oof_preds))
+
+        if model_type == 'Classification':
+            if score_eval == 'roc_auc_score':
+                oof_eval_score = roc_auc_score(y_true=y.to_numpy(), y_pred=oof_preds)
+
+        # oof_roc_auc_score = roc_auc_score(y, oof_preds)
+        # oof_eval_score = score_eval(y, oof_preds)
+
+        stacking_str = ''
+        for j in level0:
+            stacking_str = stacking_str+j[0]+'+'
+        stacking_str = stacking_str[:-1]
+        stacking_str = stacking_str+'-->'+final_model_short_name
+
+        # stacked_model_eval_dict[stacking_str] = {'OOF_'+score_eval.__name__: round(oof_eval_score, 5),
+        #                                   'Best_Params': str(model_params_dict)}
+        stacked_model_eval_dict[stacking_str] = {'OOF_'+score_eval : round(oof_eval_score, 5),
+                                          'Best_Params': str(model_params_dict)}
+
+    stacked_model_eval_df = pd.DataFrame.from_dict(stacked_model_eval_dict,
+                                                  orient='index').reset_index().rename(columns={'index': 'Model'})
+
+
+    # stacked_model_eval_df = stacked_model_eval_df.sort_values(by='OOF_ROC_AUC_Score', ascending=False)
+    #=========================================================================
+    # Below is the code for pickle the best stacked model
+    # stacked_model_eval_df = stacked_model_eval_df.sort_values(by='OOF_'+score_eval.__name__, ascending=False)
+    if greater_the_better:
+        stacked_model_eval_df = stacked_model_eval_df.sort_values(by='OOF_'+score_eval, ascending=False)
+    else:
+        stacked_model_eval_df = stacked_model_eval_df.sort_values(by='OOF_'+score_eval, ascending=True)
+
+    best_stacked_model_best_params = eval(stacked_model_eval_df.iloc[0].to_dict()['Best_Params'])
+    # logger.info(f'Best Stacked')
+    models_split = stacked_model_eval_df.iloc[0].to_dict()['Model'].split('-->')
+    logger.info(f"Best Stacked Model - {stacked_model_eval_df.iloc[0].to_dict()['Model']}")
+    logger.info(f"\nBest Stacked Model - {stacked_model_eval_df.iloc[0].to_dict()['Model']} Params:\n{pformat(best_stacked_model_best_params)}")
+    final_esti = [key for key, value in models_short_name_dict.items() if value[0] == models_split[-1]]
+    level1 = globals()[final_esti[0]]()
+
+    level0 = []
+    for i in models_split[0].split('+'):
+        level0_esti = [key for key, value in models_short_name_dict.items() if value[0] == i]
+        level0.append((i,  globals()[level0_esti[0]]()))
+
+    if model_type == 'Regression':
+        model_stack = StackingRegressor(estimators=level0, final_estimator=level1)
+    if model_type == 'Classification':
+        model_stack = StackingClassifier(estimators=level0, final_estimator=level1)
+
+    model_pipeline = Pipeline([('feat_trans', feature_trans),
+                               ('model_estimator', model_stack)])
+
+    model_pipeline.set_params(**best_stacked_model_best_params)
+
+    with open('best_stacked_model.plk', 'wb') as f:
+        pickle.dump(model_pipeline, f)
+    #=========================================================================
+
+    # stacked_model_eval_df = stacked_model_eval_df.append(model_perf_tuning_df[['Model', 'OOF_ROC_AUC_Score', 'Best_Params']])
+    # all_tree_model_eval_df = stacked_model_eval_df.append(model_perf_tuning_df[['Model', 'OOF_'+score_eval.__name__, 'Best_Params']])
+    # all_tree_model_eval_df = stacked_model_eval_df.append(model_perf_tuning_df[['Model', 'OOF_'+score_eval, 'Best_Params']])
+
+
+    # all_tree_model_eval_df['Model'] = all_tree_model_eval_df['Model'].map(lambda x: tree_models_short_name_dict[x][0] if x in tree_models_short_name_dict else x)
+    # # all_tree_model_eval_df = all_tree_model_eval_df.sort_values(by='OOF_'+score_eval.__name__, ascending=False)
+    # all_tree_model_eval_df = all_tree_model_eval_df.sort_values(by='OOF_'+score_eval, ascending=False)
+    # all_tree_model_eval_df.reset_index(drop=True, inplace=True)
+    # # logger.info(f"\nAll Tree Models Evaluation Dataframe\n{all_tree_model_eval_df[['Model', 'OOF_'+score_eval.__name__]].to_string()}")
+    # logger.info(f"\nAll Tree Models Evaluation Dataframe\n{all_tree_model_eval_df[['Model', 'OOF_'+score_eval]].to_string()}")
+    # best_tree_model = all_tree_model_eval_df.iloc[0].to_dict()['Model']
+    # best_tree_model_params = eval(all_tree_model_eval_df.iloc[0].to_dict()['Best_Params'])
+    # logger.info(f"Best Tree Model (Single+Stacked) : {best_tree_model}")
+    # logger.info(f"Best Tree Model (Single+Stacked) - {best_tree_model} Params\n{pformat(best_tree_model_params)}")
+    # # breakpoint()
+    # return all_tree_model_eval_df, best_tree_model
+
+    all_model_eval_df = stacked_model_eval_df.append(model_perf_tuning_df[['Model', 'OOF_'+score_eval, 'Best_Params']])
+    all_model_eval_df['Model'] = all_model_eval_df['Model'].map(lambda x: models_short_name_dict[x][0] if x in models_short_name_dict else x)
+
+    if greater_the_better:
+        all_model_eval_df = all_model_eval_df.sort_values(by='OOF_'+score_eval, ascending=False)
+    else:
+        all_model_eval_df = all_model_eval_df.sort_values(by='OOF_'+score_eval, ascending=True)
+
+    all_model_eval_df.reset_index(drop=True, inplace=True)
+    logger.info(f"\nAll Models Evaluation Dataframe\n{all_model_eval_df[['Model', 'OOF_'+score_eval]].to_string()}")
+    best_model = all_model_eval_df.iloc[0].to_dict()['Model']
+    best_model_params = eval(all_model_eval_df.iloc[0].to_dict()['Best_Params'])
+    logger.info(f"Best Model (Single+Stacked) : {best_model}")
+    logger.info(f"Best Model (Single+Stacked) - {best_model} Params\n{pformat(best_model_params)}")
+
+    return all_model_eval_df, best_model
+
+#=============================================================================
+
 def final_tree_model_training_pred(complete_X_train,
                                    complete_y_train,
                                    test_data,
@@ -1142,6 +1335,25 @@ def final_tree_model_training_pred(complete_X_train,
 
 #=============================================================================
 
+def final_model_training(complete_X_train,
+                            complete_y_train,
+                            best_model):
+    # Method for final training with complete dataset and test data prediction using best model
+    if '-->' in best_model:
+        with open('best_stacked_model.plk', 'rb') as f:
+            best_model_pipeline = pickle.load(f)
+    else:
+        with open('best_single_model.plk', 'rb') as f:
+            best_model_pipeline = pickle.load(f)
+
+    best_model_pipeline.fit(complete_X_train, complete_y_train)
+
+    with open('final_best_model.plk', 'wb') as f:
+        pickle.dump(best_model_pipeline, f)
+
+    return None
+
+#=============================================================================
 
 def kaggle_submission(test_df,
                       test_pred,
