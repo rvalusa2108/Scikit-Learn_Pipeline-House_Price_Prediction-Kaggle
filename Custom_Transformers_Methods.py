@@ -485,7 +485,8 @@ class Custom_LabelEncoder(BaseEstimator, TransformerMixin):
         self.fit_obj_dict = {}
         for feat in self.feature_lbl_encode_list:
             self.lbl_enc = LabelEncoder()
-            self.lbl_enc.fit(X_copy[feat].values)
+            # self.lbl_enc.fit(X_copy[feat].values)
+            self.lbl_enc.fit(X_copy[feat].values.tolist()+['Unknown'])
             self.fit_obj_dict[feat] = self.lbl_enc
         return self
 
@@ -496,7 +497,14 @@ class Custom_LabelEncoder(BaseEstimator, TransformerMixin):
             # print(f'\nLabel Encode - {feat}\nShape of X in Custom_LabelEncoder in Tranform Method - {X_copy.shape}\nself.fit_obj_dict[feat].statistics_ - {self.fit_obj_dict[feat].statistics_}\n')
             lbl_enc_feat_list.append(feat)
             # X_copy[feat] = self.lbl_enc.transform(X_copy[feat].values)
+
+            for unique_item in np.unique(X_copy[feat].values.tolist()):
+                if unique_item not in self.fit_obj_dict[feat].classes_:
+                    X_copy[feat] = ['Unknown' if x==unique_item else x for x in X_copy[feat].values.tolist()]
+
+            #print(f"Feature : {feat}")
             X_copy[feat] = self.fit_obj_dict[feat].transform(X_copy[feat].values)
+            #X_copy[feat] = self.fit_obj_dict[feat].transform(new_data_list)
 
             if self.loginfo:
                 #logging the label and its corresponing mapped value as part of label encoding
@@ -511,9 +519,10 @@ class Custom_LabelEncoder(BaseEstimator, TransformerMixin):
 #=============================================================================
 
 class Custom_OneHotEncoder(BaseEstimator, TransformerMixin):
-    def __init__(self, feature_1hot_encode_list, drop_first=True, loginfo=False):
+    def __init__(self, feature_1hot_encode_list, drop_first=True, handle_unknown='error', loginfo=False):
         self.feature_1hot_encode_list = feature_1hot_encode_list
         self.drop_first = drop_first
+        self.handle_unknown = handle_unknown
         self.loginfo = loginfo
 
     def fit(self, X, y=None, **kwargs):
@@ -528,7 +537,7 @@ class Custom_OneHotEncoder(BaseEstimator, TransformerMixin):
         for feat in self.feature_1hot_encode_list:
             self.onehot_enc = OneHotEncoder(drop=self.drop_first,
                                             sparse=False,
-                                            handle_unknown='ignore')
+                                            handle_unknown=self.handle_unknown)
             self.onehot_enc.fit(X_copy[feat].values.reshape(-1,1))
 
             self.fit_obj_dict[feat] = self.onehot_enc
@@ -844,6 +853,7 @@ def model_perf_tuning(X, y,
                                  #scoring=make_scorer(score_eval),
                                  scoring=scorer,
                                  n_jobs=-1,
+                                 #n_jobs=1,
                                  refit=True,
                                  cv=cv,
                                  verbose=1,
@@ -1202,7 +1212,8 @@ def model_ensemble(X,
                                       X=X,
                                       y=y,
                                       cv=cv,
-                                      n_jobs=-1,
+                                      #n_jobs=-1,
+                                      n_jobs=1,
                                       method='predict',
                                       # fit_params=clf.best_params_,
                                       verbose=1)
