@@ -43,9 +43,9 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.ensemble import BaggingClassifier
 from sklearn.ensemble import StackingClassifier, StackingRegressor
-from lightgbm import LGBMClassifier
-from xgboost import XGBClassifier
-from catboost import CatBoostClassifier
+from lightgbm import LGBMClassifier, LGBMRegressor
+from xgboost import XGBClassifier, XGBRegressor
+from catboost import CatBoostClassifier, CatBoostRegressor
 from sklearn.linear_model import RidgeClassifier
 from sklearn.model_selection import cross_val_score, cross_validate, cross_val_predict
 from sklearn.ensemble import RandomForestRegressor
@@ -803,7 +803,8 @@ def model_perf_tuning(X, y,
                       score_eval,
                       greater_the_better=True,
                       cv_n_splits=2,
-                      randomsearchcv_n_iter=25):
+                      randomsearchcv_n_iter=25
+                      n_jobs=-1):
 
     model_perf_tuning_dict = {}
 
@@ -849,10 +850,9 @@ def model_perf_tuning(X, y,
         clf = RandomizedSearchCV(estimator=model_pipeline,
                                  param_distributions=grid_params,
                                  n_iter=randomsearchcv_n_iter,
-                                 #n_iter=2,
-                                 #scoring=make_scorer(score_eval),
                                  scoring=scorer,
-                                 n_jobs=-1,
+                                 n_jobs=n_jobs
+                                 #n_jobs=-1,
                                  #n_jobs=1,
                                  refit=True,
                                  cv=cv,
@@ -863,12 +863,13 @@ def model_perf_tuning(X, y,
         clf.fit(X, y)
 
         model_pipeline.set_params(**clf.best_params_)
-        #cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+
         oof_preds = cross_val_predict(estimator=model_pipeline,
                                       X=X,
                                       y=y,
                                       cv=cv,
-                                      n_jobs=-1,
+                                      n_jobs=n_jobs
+                                      #n_jobs=-1,
                                       method='predict',
                                       # fit_params=clf.best_params_,
                                       verbose=1)
@@ -1139,7 +1140,8 @@ def model_ensemble(X,
                     score_eval,
                     greater_the_better,
                     model_type,
-                    model_perf_tuning_df):
+                    model_perf_tuning_df,
+                    n_jobs=-1):
 
     stacked_model_eval_dict = {}
 
@@ -1212,8 +1214,9 @@ def model_ensemble(X,
                                       X=X,
                                       y=y,
                                       cv=cv,
+                                      n_jobs=n_jobs
                                       #n_jobs=-1,
-                                      n_jobs=1,
+                                      #n_jobs=1,
                                       method='predict',
                                       # fit_params=clf.best_params_,
                                       verbose=1)
