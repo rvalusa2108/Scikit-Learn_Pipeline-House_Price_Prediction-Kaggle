@@ -40,23 +40,25 @@ logger.info(f"####################### {arrow.now().format('MM/DD/YYYY HH:mm:ss -
 # data_train = pd.read_csv('./house-prices-advanced-regression-techniques/House_Price_Final_Dataset.csv')
 # data_test  = pd.read_csv('./house-prices-advanced-regression-techniques/test.csv')
 # train_data = pd.read_csv('./house-prices-advanced-regression-techniques/House_Price_Final_Dataset.csv')
-train_data = pd.read_csv('./house-prices-advanced-regression-techniques/train.csv')
-test_data  = pd.read_csv('./house-prices-advanced-regression-techniques/test.csv')
+train_data = pd.read_csv('./house-prices-advanced-regression-techniques/House_Price_Final_Train_Dataset.csv')
+test_data  = pd.read_csv('./house-prices-advanced-regression-techniques/House_Price_Final_Test_Dataset.csv')
 
-required_feat = ['MSSubClass', 'MSZoning', 'Alley', 'LotShape', 'LandContour', 'LotConfig',
-'Neighborhood', 'Condition1', 'BldgType', 'HouseStyle', 'OverallQual', 'YearBuilt',
-'YearRemodAdd', 'RoofStyle', 'RoofMatl', 'Exterior1st', 'Exterior2nd', 'MasVnrType',
-'ExterQual', 'ExterCond', 'Foundation', 'BsmtQual', 'BsmtCond', 'BsmtExposure',
-'BsmtFinType1', 'BsmtFinType2', 'TotalBsmtSF', 'Heating', 'HeatingQC', 'CentralAir',
-'Electrical', '1stFlrSF', 'GrLivArea', 'FullBath', 'KitchenQual', 'TotRmsAbvGrd',
-'Functional', 'FireplaceQu', 'GarageType', 'GarageYrBlt', 'GarageFinish', 'GarageCars',
-'GarageArea', 'GarageQual', 'GarageCond', 'PavedDrive', 'Fence', 'SaleType', 'SaleCondition']
+
+
+# required_feat = ['MSSubClass', 'MSZoning', 'Alley', 'LotShape', 'LandContour', 'LotConfig',
+# 'Neighborhood', 'Condition1', 'BldgType', 'HouseStyle', 'OverallQual', 'YearBuilt',
+# 'YearRemodAdd', 'RoofStyle', 'RoofMatl', 'Exterior1st', 'Exterior2nd', 'MasVnrType',
+# 'ExterQual', 'ExterCond', 'Foundation', 'BsmtQual', 'BsmtCond', 'BsmtExposure',
+# 'BsmtFinType1', 'BsmtFinType2', 'TotalBsmtSF', 'Heating', 'HeatingQC', 'CentralAir',
+# 'Electrical', '1stFlrSF', 'GrLivArea', 'FullBath', 'KitchenQual', 'TotRmsAbvGrd',
+# 'Functional', 'FireplaceQu', 'GarageType', 'GarageYrBlt', 'GarageFinish', 'GarageCars',
+# 'GarageArea', 'GarageQual', 'GarageCond', 'PavedDrive', 'Fence', 'SaleType', 'SaleCondition']
 
 id_feat = ['Id']
 target_feat = ['SalePrice']
 
-train_data = train_data[id_feat+required_feat+target_feat].reset_index(drop=True)
-test_data = test_data[id_feat+required_feat].reset_index(drop=True)
+# train_data = train_data[id_feat+required_feat+target_feat].reset_index(drop=True)
+# test_data = test_data[id_feat+required_feat].reset_index(drop=True)
 
 
 
@@ -176,7 +178,7 @@ analyze_feature_transform_pipeline = Pipeline([
 ])
 
 
-#breakpoint()
+breakpoint()
 transformed_df = analyze_feature_transform_pipeline.fit_transform(X, y)
 logger.info(f"\nFinal Tranformed Dataframe:\n{transformed_df.to_string()}")
 logger.info(f"\nFinal Tranformed Dataframe shape:\n{transformed_df.shape}")
@@ -205,8 +207,8 @@ model_perf_tuning_df = ctm.model_perf_tuning(X=X,  #X=X_train,
                                 model_type='Regression',
                                 score_eval='rmsle',
                                 greater_the_better=False,
-                                cv_n_splits=3,
-                                randomsearchcv_n_iter=200,
+                                cv_n_splits=2,
+                                randomsearchcv_n_iter=100,
                                 n_jobs=6)
 
 

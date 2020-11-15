@@ -803,7 +803,7 @@ def model_perf_tuning(X, y,
                       score_eval,
                       greater_the_better=True,
                       cv_n_splits=2,
-                      randomsearchcv_n_iter=25
+                      randomsearchcv_n_iter=25,
                       n_jobs=-1):
 
     model_perf_tuning_dict = {}
@@ -851,7 +851,7 @@ def model_perf_tuning(X, y,
                                  param_distributions=grid_params,
                                  n_iter=randomsearchcv_n_iter,
                                  scoring=scorer,
-                                 n_jobs=n_jobs
+                                 n_jobs=n_jobs,
                                  #n_jobs=-1,
                                  #n_jobs=1,
                                  refit=True,
@@ -868,7 +868,7 @@ def model_perf_tuning(X, y,
                                       X=X,
                                       y=y,
                                       cv=cv,
-                                      n_jobs=n_jobs
+                                      n_jobs=n_jobs,
                                       #n_jobs=-1,
                                       method='predict',
                                       # fit_params=clf.best_params_,
@@ -1214,7 +1214,7 @@ def model_ensemble(X,
                                       X=X,
                                       y=y,
                                       cv=cv,
-                                      n_jobs=n_jobs
+                                      n_jobs=n_jobs,
                                       #n_jobs=-1,
                                       #n_jobs=1,
                                       method='predict',
