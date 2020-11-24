@@ -81,54 +81,77 @@ logger.info(f"""
 :: Categorical Features with null values ::
 {s[s>0].sort_values(ascending=False)}""")
 
-cat_feature_imputer_dict = OrderedDict({'Alley': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoAlley'},
-                                        'Fence': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoFence'},
-                                        'FireplaceQu': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoFireplace'},
-                                        'GarageType': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoGarage'},
-                                        'GarageCond': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoGarage'},
-                                        'GarageQual': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoGarage'},
-                                        'GarageFinish': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoGarage'},
-                                        'BsmtFinType2': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoBsmt'},
-                                        'BsmtExposure': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoBsmt'},
-                                        'BsmtFinType1': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoBsmt'},
-                                        'BsmtCond': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoBsmt'},
-                                        'BsmtQual': {'missing_values': np.nan,
-                                                'strategy': 'constant',
-                                                'constant_value': 'NoBsmt'},
+# cat_feature_imputer_dict = OrderedDict({'Alley': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoAlley'},
+#                                         'Fence': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoFence'},
+#                                         'FireplaceQu': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoFireplace'},
+#                                         'GarageType': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoGarage'},
+#                                         'GarageCond': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoGarage'},
+#                                         'GarageQual': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoGarage'},
+#                                         'GarageFinish': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoGarage'},
+#                                         'BsmtFinType2': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoBsmt'},
+#                                         'BsmtExposure': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoBsmt'},
+#                                         'BsmtFinType1': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoBsmt'},
+#                                         'BsmtCond': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoBsmt'},
+#                                         'BsmtQual': {'missing_values': np.nan,
+#                                                 'strategy': 'constant',
+#                                                 'constant_value': 'NoBsmt'},
 
-                                        'Electrical': {'missing_values': np.nan,
-                                                     'strategy': 'most_frequent'},
-                                        'MasVnrType': {'missing_values': np.nan,
-                                                     'strategy': 'most_frequent'},
+#                                         'Electrical': {'missing_values': np.nan,
+#                                                       'strategy': 'most_frequent'},
+#                                         'MasVnrType': {'missing_values': np.nan,
+#                                                       'strategy': 'most_frequent'},
+#                                         'GarageYrBlt': {'missing_values': np.nan,
+#                                                       'strategy': 'most_frequent'},
+
+#                                         'MSZoning': {'missing_values': np.nan,
+#                                                 'strategy': 'most_frequent'},
+#                                         'Functional': {'missing_values': np.nan,
+#                                                 'strategy': 'most_frequent'},
+                                        # 'KitchenQual': {'missing_values': np.nan,
+                                        #         'strategy': 'most_frequent'},
+                                        # 'SaleType': {'missing_values': np.nan,
+                                        #         'strategy': 'most_frequent'},
+                                        # 'GarageArea': {'missing_values': np.nan,
+                                        #         'strategy': 'median'},
+                                        # 'GarageCars': {'missing_values': np.nan,
+                                        #         'strategy': 'most_frequent'},
+                                        # 'Exterior2nd': {'missing_values': np.nan,
+                                        #         'strategy': 'most_frequent'},
+                                        # 'TotalBsmtSF': {'missing_values': np.nan,
+                                        #         'strategy': 'median'},
+                                        # 'Exterior1st': {'missing_values': np.nan,
+                                        #         'strategy': 'most_frequent'},
+#                                       })
+
+
+cat_feature_imputer_dict = OrderedDict({'MasVnrType': {'missing_values': np.nan,
+                                                      'strategy': 'most_frequent'},
                                         'GarageYrBlt': {'missing_values': np.nan,
                                                       'strategy': 'most_frequent'},
 
-                                        'MSZoning': {'missing_values': np.nan,
-                                                'strategy': 'most_frequent'},
-                                        'Functional': {'missing_values': np.nan,
-                                                'strategy': 'most_frequent'},
+
                                         'KitchenQual': {'missing_values': np.nan,
                                                 'strategy': 'most_frequent'},
                                         'SaleType': {'missing_values': np.nan,
@@ -143,39 +166,63 @@ cat_feature_imputer_dict = OrderedDict({'Alley': {'missing_values': np.nan,
                                                 'strategy': 'median'},
                                         'Exterior1st': {'missing_values': np.nan,
                                                 'strategy': 'most_frequent'},
-                                     })
+                                       })
 
-cat_lbl_encode_list = ['MSZoning', 'Alley',
-                        'LotShape', 'LandContour', 'LotConfig',
-                        'Neighborhood', 'Condition1', 'BldgType',
-                        'HouseStyle', 'RoofStyle', 'RoofMatl', 'Exterior1st',
-                        'Exterior2nd', 'MasVnrType', 'ExterQual', 'ExterCond', 'Foundation',
-                        'BsmtQual', 'BsmtCond', 'BsmtExposure', 'BsmtFinType1', 'BsmtFinType2',
-                        'Heating', 'HeatingQC', 'CentralAir', 'Electrical',
-                        'KitchenQual', 'Functional', 'FireplaceQu', 'GarageType',
-                        'GarageFinish', 'GarageQual', 'GarageCond', 'PavedDrive',
-                        'Fence', 'SaleType', 'SaleCondition']
 
-cat_1hot_encode_list = ['MSSubClass', 'MSZoning', 'Alley', 'LotShape', 'LandContour',
-       'LotConfig', 'Neighborhood', 'Condition1', 'BldgType', 'HouseStyle',
-       'RoofStyle', 'RoofMatl', 'Exterior1st',
-       'Exterior2nd', 'MasVnrType', 'ExterQual', 'ExterCond', 'Foundation',
-       'BsmtQual', 'BsmtCond', 'BsmtExposure', 'BsmtFinType1', 'BsmtFinType2',
-       'Heating', 'HeatingQC', 'CentralAir', 'Electrical', 'KitchenQual',
-       'Functional', 'FireplaceQu', 'GarageType',
-       'GarageFinish', 'GarageQual', 'GarageCond', 'PavedDrive', 'Fence',
-       'SaleType', 'SaleCondition']
+
+# cat_lbl_encode_list = ['MSZoning', 'Alley',
+#                         'LotShape', 'LandContour', 'LotConfig',
+#                         'Neighborhood', 'Condition1', 'BldgType',
+#                         'HouseStyle', 'RoofStyle', 'RoofMatl', 'Exterior1st',
+#                         'Exterior2nd', 'MasVnrType', 'ExterQual', 'ExterCond', 'Foundation',
+#                         'BsmtQual', 'BsmtCond', 'BsmtExposure', 'BsmtFinType1', 'BsmtFinType2',
+#                         'Heating', 'HeatingQC', 'CentralAir', 'Electrical',
+#                         'KitchenQual', 'Functional', 'FireplaceQu', 'GarageType',
+#                         'GarageFinish', 'GarageQual', 'GarageCond', 'PavedDrive',
+#                         'Fence', 'SaleType', 'SaleCondition']
+
+cat_lbl_encode_list = ['MSSubClass', 'Neighborhood', 'Exterior1st', 'Exterior2nd',
+                       'MasVnrType', 'ExterQual', 'Foundation', 'BsmtQual', 'BsmtExposure',
+                       'BsmtFinType1', 'HeatingQC', 'KitchenQual', 'FireplaceQu', 'GarageType',
+                       'GarageFinish', 'SaleType', 'SaleCondition']
+
+
+
+# cat_1hot_encode_list = ['MSSubClass', 'Neighborhood', 'MSZoning', 'Alley', 'LotShape', 'LandContour',
+#        'LotConfig',  'Condition1', 'BldgType', 'HouseStyle',
+#        'RoofStyle', 'RoofMatl', 'Exterior1st',
+#        'Exterior2nd', 'MasVnrType', 'ExterQual', 'ExterCond', 'Foundation',
+#        'BsmtQual', 'BsmtCond', 'BsmtExposure', 'BsmtFinType1', 'BsmtFinType2',
+#        'Heating', 'HeatingQC', 'CentralAir', 'Electrical', 'KitchenQual',
+#        'Functional', 'FireplaceQu', 'GarageType',
+#        'GarageFinish', 'GarageQual', 'GarageCond', 'PavedDrive', 'Fence',
+#        'SaleType', 'SaleCondition']
+
+
+cat_1hot_encode_list = ['MSSubClass', 'Neighborhood',
+       'Exterior1st', 'Exterior2nd', 'MasVnrType', 'ExterQual', 'Foundation',
+       'BsmtQual', 'BsmtExposure', 'BsmtFinType1', 'HeatingQC', 'KitchenQual',
+       'FireplaceQu', 'GarageType', 'GarageFinish', 'SaleType', 'SaleCondition']
 
 feature_selection_dict = {'model_type': 'Regression',
-                          'threshold': 0.0001}
+                          'threshold': 0.01}
 
 
 analyze_feature_transform_pipeline = Pipeline([
 ('Cat_SimpleImputer', ctm.Custom_SimpleImputer(feature_imputer_dict=cat_feature_imputer_dict, verbose=True)),
 ('Cat_LabelEncoder', ctm.Custom_LabelEncoder(feature_lbl_encode_list=cat_lbl_encode_list, loginfo=True)),
-('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, drop_first=False, handle_unknown='ignore', loginfo=True)),
+('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, drop_first=True, handle_unknown='error', loginfo=True)),
 ('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=True)),
 ])
+
+
+# analyze_feature_transform_pipeline = Pipeline([
+# ('Cat_SimpleImputer', ctm.Custom_SimpleImputer(feature_imputer_dict=cat_feature_imputer_dict, verbose=True)),
+# #('Cat_LabelEncoder', ctm.Custom_LabelEncoder(feature_lbl_encode_list=cat_lbl_encode_list, loginfo=True)),
+# ('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, loginfo=True)),
+# ('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=True)),
+# ])
+
 
 
 breakpoint()
@@ -190,15 +237,26 @@ logger.info(f"\nFinal Tranformed Dataframe shape:\n{transformed_df.shape}")
 feature_transform_pipeline = Pipeline([
 ('Cat_SimpleImputer', ctm.Custom_SimpleImputer(feature_imputer_dict=cat_feature_imputer_dict, verbose=False)),
 ('Cat_LabelEncoder', ctm.Custom_LabelEncoder(feature_lbl_encode_list=cat_lbl_encode_list, loginfo=False)),
-('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, drop_first=False, handle_unknown='ignore', loginfo=False)),
+('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, drop_first=True, handle_unknown='error', loginfo=False)),
 ('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=False)),
 ])
+
+
+# feature_transform_pipeline = Pipeline([
+# ('Cat_SimpleImputer', ctm.Custom_SimpleImputer(feature_imputer_dict=cat_feature_imputer_dict, verbose=False)),
+# #('Cat_LabelEncoder', ctm.Custom_LabelEncoder(feature_lbl_encode_list=cat_lbl_encode_list, loginfo=False)),
+# ('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, loginfo=False)),
+# ('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=False)),
+# ])
+
+
 
 
 model_perf_tuning_df = ctm.model_perf_tuning(X=X,  #X=X_train,
                                 y=y, #y=y_train,
                                 feature_trans=feature_transform_pipeline,
-                                estimator_list=['RandomForestRegressor',
+                                estimator_list=['LGBMRegressor',
+                                                'RandomForestRegressor',
                                                 'GradientBoostingRegressor',
                                                 #'LGBMClassifier',
                                                 #'GradientBoostingClassifier',
@@ -208,7 +266,7 @@ model_perf_tuning_df = ctm.model_perf_tuning(X=X,  #X=X_train,
                                 score_eval='rmsle',
                                 greater_the_better=False,
                                 cv_n_splits=2,
-                                randomsearchcv_n_iter=100,
+                                randomsearchcv_n_iter=50,
                                 n_jobs=6)
 
 
@@ -217,7 +275,8 @@ model_perf_tuning_df = ctm.model_perf_tuning(X=X,  #X=X_train,
 all_model_eval_df, best_model = ctm.model_ensemble(X=X, #X=X_train,
                                 y=y, #y=y_train,
                                 feature_trans=feature_transform_pipeline,
-                                estimator_list=['RandomForestRegressor',
+                                estimator_list=['LGBMRegressor',
+                                                'RandomForestRegressor',
                                                 'GradientBoostingRegressor',
                                                 #'LGBMClassifier',
                                                 #'GradientBoostingClassifier',

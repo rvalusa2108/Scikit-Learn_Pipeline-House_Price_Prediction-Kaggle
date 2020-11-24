@@ -1,0 +1,15 @@
+
+*.plk
+*.plk
+house_price_prediction_regression.log
+house_price_prediction2020-11-15_19-56-14.csv
+house_price_prediction2020-11-15_19-59-38.csv
+house_price_prediction2020-11-16_15-14-13.csv
+house_price_prediction2020-11-16_16-24-37.csv
+house_price_prediction2020-11-16_15-24-48.csv
+house_price_prediction2020-11-23_23-54-33.csv
+house_price_prediction2020-11-24_00-55-50.csv
+*.plk
+best_stacked_model.plk
+best_single_model.plk
+house_price_prediction_regression.log

@@ -19,27 +19,32 @@ regression_models_parameters:
          - mse
          - mae
       max_depth:
-         - 20
-         - 30
+         #- 20
+         #- 30
          - 40
+         - 60
+         - 80
       min_samples_split:
+         - 2
          - 5
          - 10
       min_samples_leaf:
-         - 2
+         #- 2
          - 4
+         - 6
+         - 8
       max_features:
          - auto
          - sqrt
          - log2
       n_jobs:
-         - -1
+         - 6
       bootstrap:
          - True
          - False
       random_state:
          - 42
-
+#============================================
    GradientBoostingRegressor:
       loss:
          - ls
@@ -83,6 +88,37 @@ regression_models_parameters:
       n_iter_no_change:
          - 3
 
+#============================================
+   LGBMRegressor:
+      boosting_type:
+         - gbdt #default
+         - dart
+         - goss
+      num_leaves:
+         - 31 #default
+         - 35
+      max_depth:
+         - -1 #default - no limit
+      learning_rate:
+         - 0.1 #default
+         - 0.2
+      n_estimators:
+         - 100 #default
+         - 500
+         - 800
+         - 1000
+         - 1500
+      subsample_for_bin:
+         - 200000 #default
+      min_child_samples:
+         - 20 #default
+      random_state:
+         - 42
+      n_jobs:
+         - 6
+
+#============================================
+#============================================
 
 tree_classification_models_parameters:
    CatBoostClassifier:
@@ -448,5 +484,7 @@ regression_models_short_name:
       - abr
    ExtraTreesRegressor:
       - etr
+   LGBMRegressor:
+      - lgbmr
 
 

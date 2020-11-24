@@ -486,24 +486,48 @@ class Custom_LabelEncoder(BaseEstimator, TransformerMixin):
         for feat in self.feature_lbl_encode_list:
             self.lbl_enc = LabelEncoder()
             # self.lbl_enc.fit(X_copy[feat].values)
-            self.lbl_enc.fit(X_copy[feat].values.tolist()+['Unknown'])
+            if X_copy[feat].dtype in [np.int16, np.int32, np.int64]:
+                self.lbl_enc.fit(X_copy[feat].values.tolist()+[-999])
+            else:
+                self.lbl_enc.fit(X_copy[feat].values.tolist()+['Unknown'])
+                # pass
+            # self.lbl_enc.fit(X_copy[feat].values.tolist()+[-999])
+            # self.lbl_enc.fit(X_copy[feat].values)
             self.fit_obj_dict[feat] = self.lbl_enc
+
+
+            # self.lbl_enc_w_unknown = LabelEncoder()
+            # self.lbl_enc_w_unknown.fit(X_copy[feat].tolist()+['Unknown'])
+            # self.fit_obj_dict[feat+'_w_unknown'] = self.lbl_enc_w_unknown
+
         return self
 
     def transform(self, X):
         X_copy = X.copy()
-        lbl_enc_feat_list = []
+        # lbl_enc_feat_list = []
         for feat in self.feature_lbl_encode_list:
             # print(f'\nLabel Encode - {feat}\nShape of X in Custom_LabelEncoder in Tranform Method - {X_copy.shape}\nself.fit_obj_dict[feat].statistics_ - {self.fit_obj_dict[feat].statistics_}\n')
-            lbl_enc_feat_list.append(feat)
+            # lbl_enc_feat_list.append(feat)
             # X_copy[feat] = self.lbl_enc.transform(X_copy[feat].values)
 
-            for unique_item in np.unique(X_copy[feat].values.tolist()):
-                if unique_item not in self.fit_obj_dict[feat].classes_:
-                    X_copy[feat] = ['Unknown' if x==unique_item else x for x in X_copy[feat].values.tolist()]
+            # for unique_item in np.unique(X_copy[feat].values.tolist()):
+            for unique_item in list(set(X_copy[feat].values.tolist())):
+                if self.fit_obj_dict[feat].classes_.dtype.__str__() in ['int16', 'int32', 'int64']:
+                    if unique_item not in self.fit_obj_dict[feat].classes_.tolist():
+                        # X_copy[feat] = ['Unknown' if x == unique_item else x for x in X_copy[feat].values.tolist()]
+                        X_copy[feat] = [-999 if x == unique_item else x for x in X_copy[feat].values.tolist()]
+                else:
+                    if unique_item not in self.fit_obj_dict[feat].classes_.tolist():
+                        X_copy[feat] = ['Unknown' if x == unique_item else x for x in X_copy[feat].values.tolist()]
 
-            #print(f"Feature : {feat}")
+
+                #     X_copy[feat] = self.fit_obj_dict[feat+'_w_unknown'].transform(X_copy[feat].values)
+                # else:
+                #     X_copy[feat] = self.fit_obj_dict[feat].transform(X_copy[feat].values)
+
             X_copy[feat] = self.fit_obj_dict[feat].transform(X_copy[feat].values)
+
+
             #X_copy[feat] = self.fit_obj_dict[feat].transform(new_data_list)
 
             if self.loginfo:
@@ -535,12 +559,35 @@ class Custom_OneHotEncoder(BaseEstimator, TransformerMixin):
             self.drop_first = None
 
         for feat in self.feature_1hot_encode_list:
-            self.onehot_enc = OneHotEncoder(drop=self.drop_first,
+            # self.onehot_enc = OneHotEncoder(drop=self.drop_first,
+            #                                 sparse=False,
+            #                                 handle_unknown=self.handle_unknown)
+            # self.onehot_enc.fit(X_copy[feat].values.reshape(-1,1))
+            # self.fit_obj_dict[feat] = self.onehot_enc
+
+            self.onehot_enc = OneHotEncoder(drop='first',
                                             sparse=False,
-                                            handle_unknown=self.handle_unknown)
-            self.onehot_enc.fit(X_copy[feat].values.reshape(-1,1))
+                                            handle_unknown='error')
+            # self.onehot_enc.fit(X_copy[feat].values.reshape(-1,1))
+            # self.fit_obj_dict[feat] = self.onehot_enc
+
+
+            # self.onehot_enc_unknown_ignore = OneHotEncoder(drop=None,
+            #                                 sparse=False,
+            #                                 handle_unknown='ignore')
+            # self.onehot_enc_unknown_ignore.fit(X_copy[feat].values.reshape(-1,1))
+            # self.fit_obj_dict[feat+'_unknown_ignore'] = self.onehot_enc_unknown_ignore
+
+            if X_copy[feat].dtype in [np.int16, np.int32, np.int64]:
+                # self.onehot_enc.fit(X_copy[feat].values.tolist()+[-999])
+                self.onehot_enc.fit(np.append(X_copy[feat].values.tolist(), -999).reshape(-1,1))
+            else:
+                # self.onehot_enc.fit(X_copy[feat].values.tolist()+['Unknown'])
+                self.onehot_enc.fit(np.append(X_copy[feat].values.tolist(), 'Unknown').reshape(-1,1))
 
             self.fit_obj_dict[feat] = self.onehot_enc
+
+
 
         return self
 
@@ -549,6 +596,42 @@ class Custom_OneHotEncoder(BaseEstimator, TransformerMixin):
         df = pd.DataFrame()
         df = df.append(X)
         for feat in self.feature_1hot_encode_list:
+            # if not all([True if x in self.fit_obj_dict[feat].categories_[0].tolist() else False for x in np.unique(X_copy[feat].values.tolist())]):
+            #     for unique_item in np.unique(X_copy[feat].values.tolist()):
+            #         if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
+            #             X_copy[feat] = [-999 if x == unique_item else x for x in X_copy[feat].values.tolist()]
+            #     transformed  = self.fit_obj_dict[feat+'_unknown_ignore'].transform(X_copy[feat].values.reshape(-1,1))
+            # else:
+            #     transformed  = self.fit_obj_dict[feat].transform(X_copy[feat].values.reshape(-1,1))
+
+            '''
+            if all([True if x in self.fit_obj_dict[feat].categories_[0].tolist() else False for x in np.unique(X_copy[feat].values.tolist())]):
+                transformed  = self.fit_obj_dict[feat].transform(X_copy[feat].values.reshape(-1,1))
+                ohe_df = pd.DataFrame(data=transformed, columns=self.fit_obj_dict[feat].get_feature_names([feat]))
+            else:
+                # for unique_item in np.unique(X_copy[feat].values.tolist()):
+                for unique_item in list(set(X_copy[feat].values.tolist())):
+                    if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
+                        X_copy[feat] = ['Unknown' if x == unique_item else x for x in X_copy[feat].values.tolist()]
+                transformed  = self.fit_obj_dict[feat+'_unknown_ignore'].transform(X_copy[feat].values.reshape(-1,1))
+                ohe_df = pd.DataFrame(data=transformed, columns=self.fit_obj_dict[feat+'_unknown_ignore'].get_feature_names([feat]))
+            '''
+
+            # transformed  = self.fit_obj_dict[feat].transform(X_copy[feat].values.reshape(-1,1))
+            # ohe_df = pd.DataFrame(data=transformed, columns=self.fit_obj_dict[feat].get_feature_names([feat]))
+            # df.reset_index(drop=True, inplace=True)
+            # ohe_df.reset_index(drop=True, inplace=True)
+            # df = pd.concat([df, ohe_df], axis=1).drop([feat], axis=1)
+
+            for unique_item in list(set(X_copy[feat].values.tolist())):
+                if self.fit_obj_dict[feat].categories_[0].dtype.__str__() in ['int16', 'int32', 'int64']:
+                    if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
+                        # X_copy[feat] = ['Unknown' if x == unique_item else x for x in X_copy[feat].values.tolist()]
+                        X_copy[feat] = [-999 if x == unique_item else x for x in X_copy[feat].values.tolist()]
+                else:
+                    if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
+                        X_copy[feat] = ['Unknown' if x == unique_item else x for x in X_copy[feat].values.tolist()]
+
             transformed  = self.fit_obj_dict[feat].transform(X_copy[feat].values.reshape(-1,1))
             ohe_df = pd.DataFrame(data=transformed, columns=self.fit_obj_dict[feat].get_feature_names([feat]))
             df.reset_index(drop=True, inplace=True)
@@ -556,9 +639,8 @@ class Custom_OneHotEncoder(BaseEstimator, TransformerMixin):
             df = pd.concat([df, ohe_df], axis=1).drop([feat], axis=1)
 
             if self.loginfo:
-                logger.info(f"""
-                            OneHot Encoded column names for the feature - '{feat}': {self.fit_obj_dict[feat].get_feature_names([feat])}
-                            """)
+                logger.info(f"""OneHot Encoded column names for the feature - '{feat}': {self.fit_obj_dict[feat].get_feature_names([feat])}""")
+
         return df
         # return ohe_df
 #=============================================================================
@@ -833,11 +915,24 @@ def model_perf_tuning(X, y,
         # scoring = config_data['classification_eval_metrics']
 
         if score_eval == 'rmse':
-            scorer = make_scorer(mean_squared_error, squared=False, greate_is_better=False)
+            scorer = make_scorer(mean_squared_error, squared=False, greater_is_better=False)
         if score_eval == 'rmsle':
-            scorer = make_scorer(mean_squared_log_error)
+            def rmsle(real, predicted):
+                real = real.to_numpy()
+                sum=0.0
+                for x in range(len(predicted)):
+                    if predicted[x]<0 or real[x]<0: #check for negative values
+                        continue
+                    p = np.log(predicted[x]+1)
+                    r = np.log(real[x]+1)
+
+                    # p = np.log(abs(predicted[x])+1)
+                    # r = np.log(abs(real[x])+1)
+                    sum = sum + (p - r)**2
+                return (sum/len(predicted))**0.5
+            scorer = make_scorer(rmsle, greater_is_better=False)
         if score_eval == 'mse':
-            scorer = make_scorer(mean_squared_error, squared=True, greate_is_better=False)
+            scorer = make_scorer(mean_squared_error, squared=True, greater_is_better=False)
         if score_eval == 'roc_auc_score':
             scorer = make_scorer(roc_auc_score,
                                  average='macro',
@@ -845,7 +940,7 @@ def model_perf_tuning(X, y,
                                  max_fpr=None,
                                  multi_class='raise',
                                  labels=None,
-                                 greate_is_better=True)
+                                 greater_is_better=True)
 
         clf = RandomizedSearchCV(estimator=model_pipeline,
                                  param_distributions=grid_params,
@@ -1176,6 +1271,7 @@ def model_ensemble(X,
 
     # model_combinations_tuple = permutations(estimator_list)
     for models_list in model_combinations_list:
+        print(f"""\n##################\n Ensemble Model Performance Tuning : {models_list}\n##################""")
         level0 = list()
         model_params_dict = {}
         for i in models_list[:-1]:
@@ -1233,6 +1329,7 @@ def model_ensemble(X,
             if score_eval == 'roc_auc_score':
                 oof_eval_score = roc_auc_score(y_true=y.to_numpy(), y_pred=oof_preds)
 
+        print(f"""\n{score_eval} OOF Model Evaluation Score : {models_list} - {oof_eval_score}""")
         # oof_roc_auc_score = roc_auc_score(y, oof_preds)
         # oof_eval_score = score_eval(y, oof_preds)
 
