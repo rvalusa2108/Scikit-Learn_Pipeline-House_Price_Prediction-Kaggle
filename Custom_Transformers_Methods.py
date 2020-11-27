@@ -53,7 +53,7 @@ from sklearn.ensemble import AdaBoostRegressor
 from sklearn.ensemble import ExtraTreesRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import BaggingRegressor
-from sklearn.feature_selection import SelectFromModel
+from sklearn.feature_selection import SelectFromModel, VarianceThreshold
 
 from kaggle.api.kaggle_api_extended import KaggleApi
 
@@ -559,33 +559,34 @@ class Custom_OneHotEncoder(BaseEstimator, TransformerMixin):
             self.drop_first = None
 
         for feat in self.feature_1hot_encode_list:
-            # self.onehot_enc = OneHotEncoder(drop=self.drop_first,
-            #                                 sparse=False,
-            #                                 handle_unknown=self.handle_unknown)
-            # self.onehot_enc.fit(X_copy[feat].values.reshape(-1,1))
-            # self.fit_obj_dict[feat] = self.onehot_enc
+            if feat in X_copy.columns.values.tolist():
+                # self.onehot_enc = OneHotEncoder(drop=self.drop_first,
+                #                                 sparse=False,
+                #                                 handle_unknown=self.handle_unknown)
+                # self.onehot_enc.fit(X_copy[feat].values.reshape(-1,1))
+                # self.fit_obj_dict[feat] = self.onehot_enc
 
-            self.onehot_enc = OneHotEncoder(drop='first',
-                                            sparse=False,
-                                            handle_unknown='error')
-            # self.onehot_enc.fit(X_copy[feat].values.reshape(-1,1))
-            # self.fit_obj_dict[feat] = self.onehot_enc
+                self.onehot_enc = OneHotEncoder(drop='first',
+                                                sparse=False,
+                                                handle_unknown='error')
+                # self.onehot_enc.fit(X_copy[feat].values.reshape(-1,1))
+                # self.fit_obj_dict[feat] = self.onehot_enc
 
 
-            # self.onehot_enc_unknown_ignore = OneHotEncoder(drop=None,
-            #                                 sparse=False,
-            #                                 handle_unknown='ignore')
-            # self.onehot_enc_unknown_ignore.fit(X_copy[feat].values.reshape(-1,1))
-            # self.fit_obj_dict[feat+'_unknown_ignore'] = self.onehot_enc_unknown_ignore
+                # self.onehot_enc_unknown_ignore = OneHotEncoder(drop=None,
+                #                                 sparse=False,
+                #                                 handle_unknown='ignore')
+                # self.onehot_enc_unknown_ignore.fit(X_copy[feat].values.reshape(-1,1))
+                # self.fit_obj_dict[feat+'_unknown_ignore'] = self.onehot_enc_unknown_ignore
 
-            if X_copy[feat].dtype in [np.int16, np.int32, np.int64]:
-                # self.onehot_enc.fit(X_copy[feat].values.tolist()+[-999])
-                self.onehot_enc.fit(np.append(X_copy[feat].values.tolist(), -999).reshape(-1,1))
-            else:
-                # self.onehot_enc.fit(X_copy[feat].values.tolist()+['Unknown'])
-                self.onehot_enc.fit(np.append(X_copy[feat].values.tolist(), 'Unknown').reshape(-1,1))
+                if X_copy[feat].dtype in [np.int16, np.int32, np.int64]:
+                    # self.onehot_enc.fit(X_copy[feat].values.tolist()+[-999])
+                    self.onehot_enc.fit(np.append(X_copy[feat].values.tolist(), -999).reshape(-1,1))
+                else:
+                    # self.onehot_enc.fit(X_copy[feat].values.tolist()+['Unknown'])
+                    self.onehot_enc.fit(np.append(X_copy[feat].values.tolist(), 'Unknown').reshape(-1,1))
 
-            self.fit_obj_dict[feat] = self.onehot_enc
+                self.fit_obj_dict[feat] = self.onehot_enc
 
 
 
@@ -596,50 +597,51 @@ class Custom_OneHotEncoder(BaseEstimator, TransformerMixin):
         df = pd.DataFrame()
         df = df.append(X)
         for feat in self.feature_1hot_encode_list:
-            # if not all([True if x in self.fit_obj_dict[feat].categories_[0].tolist() else False for x in np.unique(X_copy[feat].values.tolist())]):
-            #     for unique_item in np.unique(X_copy[feat].values.tolist()):
-            #         if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
-            #             X_copy[feat] = [-999 if x == unique_item else x for x in X_copy[feat].values.tolist()]
-            #     transformed  = self.fit_obj_dict[feat+'_unknown_ignore'].transform(X_copy[feat].values.reshape(-1,1))
-            # else:
-            #     transformed  = self.fit_obj_dict[feat].transform(X_copy[feat].values.reshape(-1,1))
+            if feat in X_copy.columns.values.tolist():
+                # if not all([True if x in self.fit_obj_dict[feat].categories_[0].tolist() else False for x in np.unique(X_copy[feat].values.tolist())]):
+                #     for unique_item in np.unique(X_copy[feat].values.tolist()):
+                #         if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
+                #             X_copy[feat] = [-999 if x == unique_item else x for x in X_copy[feat].values.tolist()]
+                #     transformed  = self.fit_obj_dict[feat+'_unknown_ignore'].transform(X_copy[feat].values.reshape(-1,1))
+                # else:
+                #     transformed  = self.fit_obj_dict[feat].transform(X_copy[feat].values.reshape(-1,1))
 
-            '''
-            if all([True if x in self.fit_obj_dict[feat].categories_[0].tolist() else False for x in np.unique(X_copy[feat].values.tolist())]):
+                '''
+                if all([True if x in self.fit_obj_dict[feat].categories_[0].tolist() else False for x in np.unique(X_copy[feat].values.tolist())]):
+                    transformed  = self.fit_obj_dict[feat].transform(X_copy[feat].values.reshape(-1,1))
+                    ohe_df = pd.DataFrame(data=transformed, columns=self.fit_obj_dict[feat].get_feature_names([feat]))
+                else:
+                    # for unique_item in np.unique(X_copy[feat].values.tolist()):
+                    for unique_item in list(set(X_copy[feat].values.tolist())):
+                        if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
+                            X_copy[feat] = ['Unknown' if x == unique_item else x for x in X_copy[feat].values.tolist()]
+                    transformed  = self.fit_obj_dict[feat+'_unknown_ignore'].transform(X_copy[feat].values.reshape(-1,1))
+                    ohe_df = pd.DataFrame(data=transformed, columns=self.fit_obj_dict[feat+'_unknown_ignore'].get_feature_names([feat]))
+                '''
+
+                # transformed  = self.fit_obj_dict[feat].transform(X_copy[feat].values.reshape(-1,1))
+                # ohe_df = pd.DataFrame(data=transformed, columns=self.fit_obj_dict[feat].get_feature_names([feat]))
+                # df.reset_index(drop=True, inplace=True)
+                # ohe_df.reset_index(drop=True, inplace=True)
+                # df = pd.concat([df, ohe_df], axis=1).drop([feat], axis=1)
+
+                for unique_item in list(set(X_copy[feat].values.tolist())):
+                    if self.fit_obj_dict[feat].categories_[0].dtype.__str__() in ['int16', 'int32', 'int64']:
+                        if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
+                            # X_copy[feat] = ['Unknown' if x == unique_item else x for x in X_copy[feat].values.tolist()]
+                            X_copy[feat] = [-999 if x == unique_item else x for x in X_copy[feat].values.tolist()]
+                    else:
+                        if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
+                            X_copy[feat] = ['Unknown' if x == unique_item else x for x in X_copy[feat].values.tolist()]
+
                 transformed  = self.fit_obj_dict[feat].transform(X_copy[feat].values.reshape(-1,1))
                 ohe_df = pd.DataFrame(data=transformed, columns=self.fit_obj_dict[feat].get_feature_names([feat]))
-            else:
-                # for unique_item in np.unique(X_copy[feat].values.tolist()):
-                for unique_item in list(set(X_copy[feat].values.tolist())):
-                    if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
-                        X_copy[feat] = ['Unknown' if x == unique_item else x for x in X_copy[feat].values.tolist()]
-                transformed  = self.fit_obj_dict[feat+'_unknown_ignore'].transform(X_copy[feat].values.reshape(-1,1))
-                ohe_df = pd.DataFrame(data=transformed, columns=self.fit_obj_dict[feat+'_unknown_ignore'].get_feature_names([feat]))
-            '''
+                df.reset_index(drop=True, inplace=True)
+                ohe_df.reset_index(drop=True, inplace=True)
+                df = pd.concat([df, ohe_df], axis=1).drop([feat], axis=1)
 
-            # transformed  = self.fit_obj_dict[feat].transform(X_copy[feat].values.reshape(-1,1))
-            # ohe_df = pd.DataFrame(data=transformed, columns=self.fit_obj_dict[feat].get_feature_names([feat]))
-            # df.reset_index(drop=True, inplace=True)
-            # ohe_df.reset_index(drop=True, inplace=True)
-            # df = pd.concat([df, ohe_df], axis=1).drop([feat], axis=1)
-
-            for unique_item in list(set(X_copy[feat].values.tolist())):
-                if self.fit_obj_dict[feat].categories_[0].dtype.__str__() in ['int16', 'int32', 'int64']:
-                    if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
-                        # X_copy[feat] = ['Unknown' if x == unique_item else x for x in X_copy[feat].values.tolist()]
-                        X_copy[feat] = [-999 if x == unique_item else x for x in X_copy[feat].values.tolist()]
-                else:
-                    if unique_item not in self.fit_obj_dict[feat].categories_[0].tolist():
-                        X_copy[feat] = ['Unknown' if x == unique_item else x for x in X_copy[feat].values.tolist()]
-
-            transformed  = self.fit_obj_dict[feat].transform(X_copy[feat].values.reshape(-1,1))
-            ohe_df = pd.DataFrame(data=transformed, columns=self.fit_obj_dict[feat].get_feature_names([feat]))
-            df.reset_index(drop=True, inplace=True)
-            ohe_df.reset_index(drop=True, inplace=True)
-            df = pd.concat([df, ohe_df], axis=1).drop([feat], axis=1)
-
-            if self.loginfo:
-                logger.info(f"""OneHot Encoded column names for the feature - '{feat}': {self.fit_obj_dict[feat].get_feature_names([feat])}""")
+                if self.loginfo:
+                    logger.info(f"""OneHot Encoded column names for the feature - '{feat}': {self.fit_obj_dict[feat].get_feature_names([feat])}""")
 
         return df
         # return ohe_df
@@ -713,37 +715,95 @@ class Custom_Feature_Selection(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None, **kwargs):
         X_copy = X.copy()
+        feat_remove_list = []
+
+        # Removing constant features using VarianceThreshold from Scikit-learn
+        self.vt_cf = VarianceThreshold(threshold=0)
+        self.vt_cf.fit(X_copy)
+        self.vt_cf_feat_names = X_copy.columns[self.vt_cf.get_support()] #This gives which features are retained
+        constant_feat = X_copy.columns[~self.vt_cf.get_support()]
+
+        feat_remove_list += constant_feat
+
+        # Remove quasi-constant features using VarianceThreshold from Scikit-learn
+        self.vt_qcf = VarianceThreshold(threshold=0.01)
+        X_copy = X_copy[X_copy.columns.difference(feat_remove_list)]
+        self.vt_qcf.fit(X_copy)
+        self.vt_qcf_feat_names = X_copy.columns[self.vt_qcf.get_support()]
+        quasi_constant_feat = X_copy.columns[~self.vt_qcf.get_support()]
+
+        feat_remove_list += quasi_constant_feat
+
+        # Remove duplicate features using iteration
+        self.duplicated_feat = []
+        # iterate over every feature in our dataset:
+        X_copy = X_copy[X_copy.columns.difference(feat_remove_list)]
+        for i in range(0, len(X_copy.columns)):
+            feat_1 = X_copy.columns[i]
+            if feat_1 not in self.duplicated_feat:
+                # now, iterate over the remaining features of the dataset:
+                for feat_2 in X_copy.columns[i + 1:]:
+                    # check if this second feature is identical to the first one
+                    if X_copy[feat_1].equals(X_copy[feat_2]):
+                        self.duplicated_feat.append(feat_2)
+
+        feat_remove_list += self.duplicated_feat
 
         if self.feature_selection_dict['model_type'] == 'Regression':
-            self.sfm = SelectFromModel(estimator=RandomForestRegressor(n_estimators=400,
+            X_copy = X_copy[X_copy.columns.difference(feat_remove_list)]
+            self.sfm = SelectFromModel(estimator=RandomForestRegressor(n_estimators=500,
                                                                        random_state=42),
                                                                        threshold=self.feature_selection_dict['threshold'])
             self.sfm.fit(X_copy, y)
-
             feat_importances = pd.Series(self.sfm.estimator_.feature_importances_,
                                           index=X_copy.columns).sort_values(ascending=False)
 
-            plt.figure(figsize=(10,12))
-            feat_importances.plot(kind='barh')
+            plt.figure(figsize=(6,8))
+            feat_importances.nlargest(self.feature_selection_dict['n_largest_features']).plot(kind='barh')
             plt.show()
 
-            important_feats = X_copy.columns.values[self.sfm.get_support()].tolist()
+            self.selectfrommodel_important_feats = X_copy.columns.values[self.sfm.get_support()].tolist()
 
             if self.loginfo:
+                if len(constant_feat) > 0:
+                    logger.info(f"""No. of constant features dropped : {len(constant_feat)}\n{constant_feat}""")
+                else:
+                    logger.info(f"""No Constant Features are found""")
+
+                if len(quasi_constant_feat) > 0:
+                    logger.info(f"""No. of quasi-constant features dropped : {len(quasi_constant_feat)}\n{quasi_constant_feat}""")
+                else:
+                    logger.info(f"""No Quasi-Constant Features are found""")
+
+                if len(self.duplicated_feat) > 0:
+                    logger.info(f"""No. of duplicate features dropped : {len(self.duplicated_feat)}\n{self.duplicated_feat}""")
+                else:
+                    logger.info(f"""No Duplicate Features are found""")
+
                 logger.info(f"""Feature Importance Threshold:\n {self.feature_selection_dict['threshold']}""")
                 logger.info(f"""Feature Importance:\n{feat_importances}""")
-                logger.info(f"""Features selected based on importance:\n{important_feats}""")
+                logger.info(f"""Features selected based on importance: {len(self.selectfrommodel_important_feats)}\n{self.selectfrommodel_important_feats}""")
 
         return self
 
     def transform(self, X):
         X_copy = X.copy()
 
-        if self.feature_selection_dict['model_type'] == 'Regression':
-            sfm_transformed = pd.DataFrame(data=self.sfm.transform(X_copy),
-                                           columns=X_copy.columns.values[self.sfm.get_support()].tolist())
+        # Removing constant features using VarianceThreshold from Scikit-learn
+        # by applying transform
+        X_copy = X_copy[self.vt_cf_feat_names]
 
-        return sfm_transformed
+        # Removing quasi-constant features using VarianceThreshold from Scikit-learn
+        # by applying transform
+        X_copy = X_copy[self.vt_qcf_feat_names]
+
+        # Drop duplicate features
+        X_copy.drop(columns=self.duplicated_feat, axis=1, inplace=True)
+
+        if self.feature_selection_dict['model_type'] == 'Regression':
+            X_copy = X_copy[self.selectfrommodel_important_feats]
+
+        return X_copy
 #=============================================================================
 
 def get_stacking_ensemble_classifiers():
@@ -1271,7 +1331,7 @@ def model_ensemble(X,
 
     # model_combinations_tuple = permutations(estimator_list)
     for models_list in model_combinations_list:
-        print(f"""\n##################\n Ensemble Model Performance Tuning : {models_list}\n##################""")
+        print(f"""\n##################\n Ensemble Model : {models_list}\n##################""")
         level0 = list()
         model_params_dict = {}
         for i in models_list[:-1]:

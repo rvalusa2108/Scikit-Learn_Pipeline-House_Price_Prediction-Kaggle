@@ -205,15 +205,16 @@ cat_1hot_encode_list = ['MSSubClass', 'Neighborhood',
        'FireplaceQu', 'GarageType', 'GarageFinish', 'SaleType', 'SaleCondition']
 
 feature_selection_dict = {'model_type': 'Regression',
-                          'threshold': 0.01}
+                          'threshold': 0.001,
+                          'n_largest_features': 15}
 
 
-analyze_feature_transform_pipeline = Pipeline([
-('Cat_SimpleImputer', ctm.Custom_SimpleImputer(feature_imputer_dict=cat_feature_imputer_dict, verbose=True)),
-('Cat_LabelEncoder', ctm.Custom_LabelEncoder(feature_lbl_encode_list=cat_lbl_encode_list, loginfo=True)),
-('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, drop_first=True, handle_unknown='error', loginfo=True)),
-('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=True)),
-])
+# analyze_feature_transform_pipeline = Pipeline([
+# ('Cat_SimpleImputer', ctm.Custom_SimpleImputer(feature_imputer_dict=cat_feature_imputer_dict, verbose=True)),
+# ('Cat_LabelEncoder', ctm.Custom_LabelEncoder(feature_lbl_encode_list=cat_lbl_encode_list, loginfo=True)),
+# ('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, drop_first=True, handle_unknown='error', loginfo=True)),
+# ('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=True)),
+# ])
 
 
 # analyze_feature_transform_pipeline = Pipeline([
@@ -223,6 +224,12 @@ analyze_feature_transform_pipeline = Pipeline([
 # ('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=True)),
 # ])
 
+analyze_feature_transform_pipeline = Pipeline([
+('Cat_SimpleImputer', ctm.Custom_SimpleImputer(feature_imputer_dict=cat_feature_imputer_dict, verbose=True)),
+('Cat_LabelEncoder', ctm.Custom_LabelEncoder(feature_lbl_encode_list=cat_lbl_encode_list, loginfo=True)),
+('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=True)),
+('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, loginfo=True)),
+])
 
 
 breakpoint()
@@ -234,12 +241,12 @@ logger.info(f"\nFinal Tranformed Dataframe shape:\n{transformed_df.shape}")
 
 
 
-feature_transform_pipeline = Pipeline([
-('Cat_SimpleImputer', ctm.Custom_SimpleImputer(feature_imputer_dict=cat_feature_imputer_dict, verbose=False)),
-('Cat_LabelEncoder', ctm.Custom_LabelEncoder(feature_lbl_encode_list=cat_lbl_encode_list, loginfo=False)),
-('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, drop_first=True, handle_unknown='error', loginfo=False)),
-('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=False)),
-])
+# feature_transform_pipeline = Pipeline([
+# ('Cat_SimpleImputer', ctm.Custom_SimpleImputer(feature_imputer_dict=cat_feature_imputer_dict, verbose=False)),
+# ('Cat_LabelEncoder', ctm.Custom_LabelEncoder(feature_lbl_encode_list=cat_lbl_encode_list, loginfo=False)),
+# ('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, drop_first=True, handle_unknown='error', loginfo=False)),
+# ('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=False)),
+# ])
 
 
 # feature_transform_pipeline = Pipeline([
@@ -250,7 +257,12 @@ feature_transform_pipeline = Pipeline([
 # ])
 
 
-
+feature_transform_pipeline = Pipeline([
+('Cat_SimpleImputer', ctm.Custom_SimpleImputer(feature_imputer_dict=cat_feature_imputer_dict, verbose=False)),
+('Cat_LabelEncoder', ctm.Custom_LabelEncoder(feature_lbl_encode_list=cat_lbl_encode_list, loginfo=False)),
+('Feat_Selection', ctm.Custom_Feature_Selection(feature_selection_dict=feature_selection_dict, loginfo=False)),
+('Cat_OneHotEncoder', ctm.Custom_OneHotEncoder(feature_1hot_encode_list=cat_1hot_encode_list, loginfo=False)),
+])
 
 model_perf_tuning_df = ctm.model_perf_tuning(X=X,  #X=X_train,
                                 y=y, #y=y_train,
@@ -266,7 +278,7 @@ model_perf_tuning_df = ctm.model_perf_tuning(X=X,  #X=X_train,
                                 score_eval='rmsle',
                                 greater_the_better=False,
                                 cv_n_splits=2,
-                                randomsearchcv_n_iter=50,
+                                randomsearchcv_n_iter=300,
                                 n_jobs=6)
 
 
