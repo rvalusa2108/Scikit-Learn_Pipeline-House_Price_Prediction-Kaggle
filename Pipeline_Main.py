@@ -204,7 +204,8 @@ cat_1hot_encode_list = ['MSSubClass', 'Neighborhood',
        'BsmtQual', 'BsmtExposure', 'BsmtFinType1', 'HeatingQC', 'KitchenQual',
        'FireplaceQu', 'GarageType', 'GarageFinish', 'SaleType', 'SaleCondition']
 
-feature_selection_dict = {'model_type': 'Regression',
+feature_selection_dict = {'featCorrelationThreshold': 0.8,
+                          'model_type': 'Regression',
                           'threshold': 0.001,
                           'n_largest_features': 15}
 
@@ -278,10 +279,8 @@ model_perf_tuning_df = ctm.model_perf_tuning(X=X,  #X=X_train,
                                 score_eval='rmsle',
                                 greater_the_better=False,
                                 cv_n_splits=2,
-                                randomsearchcv_n_iter=300,
+                                randomsearchcv_n_iter=100,
                                 n_jobs=6)
-
-
 
 
 all_model_eval_df, best_model = ctm.model_ensemble(X=X, #X=X_train,

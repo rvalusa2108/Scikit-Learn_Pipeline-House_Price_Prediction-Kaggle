@@ -717,23 +717,44 @@ class Custom_Feature_Selection(BaseEstimator, TransformerMixin):
         X_copy = X.copy()
         feat_remove_list = []
 
+        # =============================================================
+        # Constant Features
+        # -----------------
         # Removing constant features using VarianceThreshold from Scikit-learn
         self.vt_cf = VarianceThreshold(threshold=0)
         self.vt_cf.fit(X_copy)
         self.vt_cf_feat_names = X_copy.columns[self.vt_cf.get_support()] #This gives which features are retained
-        constant_feat = X_copy.columns[~self.vt_cf.get_support()]
+        constant_feat = X_copy.columns[~self.vt_cf.get_support()].to_list()
 
         feat_remove_list += constant_feat
 
+        if self.loginfo:
+            if len(constant_feat) > 0:
+                logger.info(f"""No. of constant features dropped : {len(constant_feat)}\n{constant_feat}""")
+            else:
+                logger.info("""No Constant Features are found""")
+
+        # =============================================================
+        # Quasi-Constant Features
+        # -----------------------
         # Remove quasi-constant features using VarianceThreshold from Scikit-learn
         self.vt_qcf = VarianceThreshold(threshold=0.01)
         X_copy = X_copy[X_copy.columns.difference(feat_remove_list)]
         self.vt_qcf.fit(X_copy)
         self.vt_qcf_feat_names = X_copy.columns[self.vt_qcf.get_support()]
-        quasi_constant_feat = X_copy.columns[~self.vt_qcf.get_support()]
+        quasi_constant_feat = X_copy.columns[~self.vt_qcf.get_support()].to_list()
 
         feat_remove_list += quasi_constant_feat
 
+        if self.loginfo:
+            if len(quasi_constant_feat) > 0:
+                logger.info(f"""No. of quasi-constant features dropped : {len(quasi_constant_feat)}\n{quasi_constant_feat}""")
+            else:
+                logger.info("""No Quasi-Constant Features are found""")
+
+        # =============================================================
+        # Duplicate Features
+        # ------------------
         # Remove duplicate features using iteration
         self.duplicated_feat = []
         # iterate over every feature in our dataset:
@@ -749,37 +770,89 @@ class Custom_Feature_Selection(BaseEstimator, TransformerMixin):
 
         feat_remove_list += self.duplicated_feat
 
+        if self.loginfo:
+            if len(self.duplicated_feat) > 0:
+                logger.info(f"""No. of duplicate features dropped : {len(self.duplicated_feat)}\n{self.duplicated_feat}""")
+            else:
+                logger.info("""No Duplicate Features are found""")
+
+        # =============================================================
+        # Correlated Features
+        # -------------------
+        # Identify the correlated feature in the training data set
+        X_copy = X_copy[X_copy.columns.difference(feat_remove_list)]
+
+        corrmat_threshold = self.feature_selection_dict['featCorrelationThreshold']
+        corrmat = X_copy.corr()
+        corrmat = corrmat.abs().unstack() # absolute value of corr coef
+        corrmat = corrmat.sort_values(ascending=False)
+        corrmat = corrmat[corrmat >= corrmat_threshold]
+        corrmat = corrmat[corrmat < 1]
+        corrmat = pd.DataFrame(corrmat).reset_index()
+        corrmat.columns = ['feature1', 'feature2', 'corr']
+        corrmat.head()
+
+        grouped_feature_ls = []
+        correlated_groups = []
+        for feature in corrmat.feature1.unique():
+            if feature not in grouped_feature_ls:
+                # find all features correlated to a single feature
+                correlated_block = corrmat[corrmat.feature1 == feature]
+                grouped_feature_ls = grouped_feature_ls + list(correlated_block.feature2.unique()) + [feature]
+                # append the block of features to the list
+                correlated_groups.append(correlated_block)
+
+        if self.loginfo:
+            logger.info(f'Found {len(correlated_groups)} correlated groups out of {X_copy.shape[1]} total features')
+            for group in correlated_groups:
+                logger.info(f"\n{group}")
+            # print()
+
+        self.corr_features_drop = []
+        for group in correlated_groups:
+            # add all features of the group to a list
+            features = group['feature2'].unique().tolist()+group['feature1'].unique().tolist()
+
+            if self.feature_selection_dict['model_type'] == 'Regression':
+                # train a random forest
+                rf = RandomForestRegressor(n_estimators=400, random_state=42, max_depth=5)
+                rf.fit(X_copy[features], y)
+
+                importance = pd.concat([pd.Series(features), pd.Series(rf.feature_importances_)], axis=1)
+                importance.columns = ['feature', 'importance']
+                importance = importance.sort_values(by='importance', ascending=False)
+                importance.reset_index(drop=True, inplace=True)
+                self.corr_features_drop += importance['feature'].values.tolist()[1:]
+
+                if self.loginfo:
+                    logger.info(f"""Correlated Feature group Importance\n{importance}""")
+
+            if self.feature_selection_dict['model_type'] == 'Classification':
+                print("Write the code for classification in here")
+
+        feat_remove_list += self.corr_features_drop
+
+        if self.loginfo:
+            logger.info(f"""Correlated Features to be dropped : {len(self.corr_features_drop)}\n{self.corr_features_drop} """)
+
+        # =============================================================
         if self.feature_selection_dict['model_type'] == 'Regression':
             X_copy = X_copy[X_copy.columns.difference(feat_remove_list)]
             self.sfm = SelectFromModel(estimator=RandomForestRegressor(n_estimators=500,
-                                                                       random_state=42),
+                                                                       random_state=42,
+                                                                       max_depth=5),
                                                                        threshold=self.feature_selection_dict['threshold'])
             self.sfm.fit(X_copy, y)
             feat_importances = pd.Series(self.sfm.estimator_.feature_importances_,
                                           index=X_copy.columns).sort_values(ascending=False)
 
-            plt.figure(figsize=(6,8))
+            plt.figure(figsize=(6,7))
             feat_importances.nlargest(self.feature_selection_dict['n_largest_features']).plot(kind='barh')
             plt.show()
 
             self.selectfrommodel_important_feats = X_copy.columns.values[self.sfm.get_support()].tolist()
 
             if self.loginfo:
-                if len(constant_feat) > 0:
-                    logger.info(f"""No. of constant features dropped : {len(constant_feat)}\n{constant_feat}""")
-                else:
-                    logger.info(f"""No Constant Features are found""")
-
-                if len(quasi_constant_feat) > 0:
-                    logger.info(f"""No. of quasi-constant features dropped : {len(quasi_constant_feat)}\n{quasi_constant_feat}""")
-                else:
-                    logger.info(f"""No Quasi-Constant Features are found""")
-
-                if len(self.duplicated_feat) > 0:
-                    logger.info(f"""No. of duplicate features dropped : {len(self.duplicated_feat)}\n{self.duplicated_feat}""")
-                else:
-                    logger.info(f"""No Duplicate Features are found""")
-
                 logger.info(f"""Feature Importance Threshold:\n {self.feature_selection_dict['threshold']}""")
                 logger.info(f"""Feature Importance:\n{feat_importances}""")
                 logger.info(f"""Features selected based on importance: {len(self.selectfrommodel_important_feats)}\n{self.selectfrommodel_important_feats}""")
@@ -790,17 +863,17 @@ class Custom_Feature_Selection(BaseEstimator, TransformerMixin):
         X_copy = X.copy()
 
         # Removing constant features using VarianceThreshold from Scikit-learn
-        # by applying transform
         X_copy = X_copy[self.vt_cf_feat_names]
 
         # Removing quasi-constant features using VarianceThreshold from Scikit-learn
-        # by applying transform
         X_copy = X_copy[self.vt_qcf_feat_names]
 
         # Drop duplicate features
         X_copy.drop(columns=self.duplicated_feat, axis=1, inplace=True)
 
         if self.feature_selection_dict['model_type'] == 'Regression':
+            # Dropping correlated features
+            X_copy.drop(columns=self.corr_features_drop, axis=1, inplace=True)
             X_copy = X_copy[self.selectfrommodel_important_feats]
 
         return X_copy
